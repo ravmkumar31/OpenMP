@@ -51,28 +51,61 @@ int main (int argc, char* argv[]) {
   auto clock_start = std::chrono::system_clock::now();
   if(strcmp(schedule_type , "static") == 0)
   {
-    #pragma omp parallel for schedule(static,granularity) reduction(+:reduced_sum)
-    for (int i = 0; i < n; ++i)
+    if (granularity<0)
     {
-      reduced_sum+=arr[i];
+       #pragma omp parallel for schedule(static) reduction(+:reduced_sum)
+        for (int i = 0; i < n; ++i)
+        {
+          reduced_sum+=arr[i];
+        }  
+    }
+    else
+    {
+      #pragma omp parallel for schedule(static,granularity) reduction(+:reduced_sum)
+      for (int i = 0; i < n; ++i)
+      {
+        reduced_sum+=arr[i];
+      }
     }  
   }
   else if(strcmp(schedule_type, "dynamic") == 0)
   {
-    #pragma omp parallel for schedule(dynamic,granularity) reduction(+:reduced_sum)
-    for (int i = 0; i < n; ++i)
+    if (granularity<0)
+    {  
+     #pragma omp parallel for schedule(dynamic) reduction(+:reduced_sum)
+     for (int i = 0; i < n; ++i)
+     {
+       reduced_sum+=arr[i];
+     }
+    }
+    else
     {
-      reduced_sum+=arr[i];
+      #pragma omp parallel for schedule(dynamic,granularity) reduction(+:reduced_sum)
+      for (int i = 0; i < n; ++i)
+      {
+       reduced_sum+=arr[i];
+      }
     } 
   }
-  else if (strcmp(schedule_type,"guided") == 0)
-  {
-    #pragma omp parallel for schedule(guided,granularity) reduction(+:reduced_sum)
-    for (int i = 0; i < n; ++i)
-    {
-      reduced_sum+=arr[i];
-    } 
-  }
+  // else if (strcmp(schedule_type,"guided") == 0)
+  // {
+  //   if (granularity<0)
+  //   {
+  //     #pragma omp parallel for schedule(guided) reduction(+:reduced_sum)
+  //     for (int i = 0; i < n; ++i)
+  //     {
+  //       reduced_sum+=arr[i];
+  //     } 
+  //   }
+  //   else
+  //   {
+  //     #pragma omp parallel for schedule(guided,granularity) reduction(+:reduced_sum)
+  //     for (int i = 0; i < n; ++i)
+  //     {
+  //       reduced_sum+=arr[i];
+  //     } 
+  //   }
+  // }
   
   
   auto clock_end = std::chrono::system_clock::now();
