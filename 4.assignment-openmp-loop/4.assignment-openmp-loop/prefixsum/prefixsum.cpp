@@ -61,7 +61,7 @@ int main (int argc, char* argv[]) {
     }
 
     int thread_sum = 0;
-    #pragma omp for schedule(auto) nowait 
+    #pragma omp for schedule(static) nowait 
     for (int j = 0; j < n; ++j)
     {
       thread_sum += arr[j];
@@ -75,7 +75,7 @@ int main (int argc, char* argv[]) {
       x += thread_local_sum[i];
     }
 
-    #pragma omp for schedule(auto) 
+    #pragma omp for schedule(static) 
     for(int i=0; i<n; i++) {
       pr[i+1] += x;
     }
