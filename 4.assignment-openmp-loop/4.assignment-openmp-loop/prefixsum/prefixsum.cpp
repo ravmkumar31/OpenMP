@@ -41,8 +41,7 @@ int main (int argc, char* argv[]) {
   
   int nbthreads = atoi(argv[2]);
   int* pr = new int [n+1];
-  std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
-
+  auto clock_start = std::chrono::system_clock::now();
   pr[0] = arr[0]; 
   // int *thread_local_sum;
   #pragma omp parallel
@@ -74,11 +73,9 @@ int main (int argc, char* argv[]) {
     }
   } 
   
-  std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
-
-  std::chrono::duration<double> elapsed_seconds = end-start;
-
-  std::cerr<<elapsed_seconds.count()<<std::endl;
+  auto clock_end = std::chrono::system_clock::now();
+  std::chrono::duration<double> total_duration = clock_end-clock_start;
+  std::cerr<<total_duration.count()<<std::endl;
 
   checkPrefixSumResult(pr, n);
 
