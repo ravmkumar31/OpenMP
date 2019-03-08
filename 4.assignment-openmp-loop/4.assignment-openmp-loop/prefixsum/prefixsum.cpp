@@ -39,7 +39,7 @@ int main (int argc, char* argv[]) {
   int * arr = new int [n];
   generatePrefixSumData (arr, n);
   
-  
+  int nbthreads = atoi(argv[2]);
   int* pr = new int [n+1];
   std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
 
