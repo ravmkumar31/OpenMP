@@ -57,7 +57,7 @@ int main (int argc, char* argv[]) {
     #pragma omp single
     {
       thread_local_sum = new int[nbthreads+1];
-      pr[0] = 0;
+      thread_local_sum[0] = 0;
     }
 
     int thread_sum = 0;
