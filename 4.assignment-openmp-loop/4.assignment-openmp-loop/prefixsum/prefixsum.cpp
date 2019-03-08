@@ -20,20 +20,22 @@ extern "C" {
 #endif
 
 int main (int argc, char* argv[]) {
-  if (argc < 2) {
-    std::cerr<<"Usage: "<<argv[0]<<" <n>"<<std::endl;
+  #pragma omp parallel
+  {
+    int fd = open (argv[0], O_RDONLY);
+    if (fd != -1) {
+      close (fd);
+    }
+    else {
+      std::cerr<<"something is amiss"<<std::endl;
+    }
+  }
+  
+  if (argc < 3) {
+    std::cerr<<"Usage: "<<argv[0]<<" <n> <nbthreads>"<<std::endl;
     return -1;
   }
 
-  // int n = atoi(argv[1]);
-
-  // int nbthreads = atoi(argv[2]);
-  // omp_set_num_threads(nbthreads);
-
-  // int * arr = new int [n];
-  // int* prefix = new int [n+1];
-
-  int *thread_local_sum;
   int n = atoi(argv[1]);
 
   int * arr = new int [n];
@@ -43,7 +45,7 @@ int main (int argc, char* argv[]) {
   int* pr = new int [n+1];
   auto clock_start = std::chrono::system_clock::now();
   pr[0] = arr[0]; 
-  // int *thread_local_sum;
+  int *thread_local_sum;
   #pragma omp parallel
   {
     int thread_num = omp_get_thread_num();
