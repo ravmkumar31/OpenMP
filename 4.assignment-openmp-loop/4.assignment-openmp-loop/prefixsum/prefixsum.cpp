@@ -1,93 +1,85 @@
-#include <omp.h>
+#include <chrono>
 #include <stdio.h>
 #include <iostream>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <chrono>
 #include <unistd.h>
-
+#include <omp.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
   void generatePrefixSumData (int* arr, size_t n);
   void checkPrefixSumResult (int* arr, size_t n);
+  
+  
 #ifdef __cplusplus
 }
 #endif
 
-
 int main (int argc, char* argv[]) {
-  //forces openmp to create the threads beforehand
-#pragma omp parallel
-  {
-    int fd = open (argv[0], O_RDONLY);
-    if (fd != -1) {
-      close (fd);
-    }
-    else {
-      std::cerr<<"something is amiss"<<std::endl;
-    }
-  }
-  
-  if (argc < 3) {
-    std::cerr<<"Usage: "<<argv[0]<<" <n> <nbthreads>"<<std::endl;
+  if (argc < 2) {
+    std::cerr<<"Usage: "<<argv[0]<<" <n>"<<std::endl;
     return -1;
   }
 
-  int *thread_local_sum;
   int n = atoi(argv[1]);
 
+  int nbthreads = atoi(argv[2]);
+  omp_set_num_threads(nbthreads);
+
   int * arr = new int [n];
+  int* prefix = new int [n+1];
+  
+  
   generatePrefixSumData (arr, n);
 
-  int * pr = new int [n+1];
+  std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
 
-  //insert prefix sum code here
-
-  int nbthreads = atoi(argv[2]);
-
-  auto clock_start = std::chrono::system_clock::now();
-  pr[0] = arr[0];
+  prefix[0] = arr[0]; 
+  int *partial_sum;
   #pragma omp parallel
   {
-    int thread_num = omp_get_thread_num();
-
+    int thread_id = omp_get_thread_num();
+    
     #pragma omp single
     {
-      thread_local_sum = new int[nbthreads+1];
-      thread_local_sum[0] = 0;
+      partial_sum = new int[nbthreads+1];
+      partial_sum[0] = 0;
     }
-
-    int thread_sum = 0;
-    #pragma omp for schedule(static) nowait 
-    for (int j = 0; j < n; ++j)
-    {
-      thread_sum += arr[j];
-      pr[j+1] = thread_sum;
+    int sum = 0;
+    #pragma omp for schedule(auto) nowait 
+    for(int i=0; i<n; i++) {
+      sum += arr[i];
+      prefix[i+1] = sum;
     }
-    thread_local_sum[thread_num+1];
-
+    partial_sum[thread_id+1] = sum;
+    
     #pragma omp barrier
     int x = 0;
-    for(int i=0; i<(thread_num+1); i++) {
-      x += thread_local_sum[i];
+    for(int i=0; i<(thread_id+1); i++) {
+      x += partial_sum[i];
     }
 
-    #pragma omp for schedule(static) 
+    #pragma omp for schedule(auto) 
     for(int i=0; i<n; i++) {
-      pr[i+1] += x;
+      prefix[i+1] += x;
     }
+  } 
+  
+  std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
 
-  }
-  auto clock_end = std::chrono::system_clock::now();
-  std::chrono::duration<double>diff = clock_end - clock_start;
-  std::cerr<<diff.count();
+  std::chrono::duration<double> elapsed_seconds = end-start;
 
-  checkPrefixSumResult(pr, n);
+  std::cerr<<elapsed_seconds.count()<<std::endl;
+
+  checkPrefixSumResult(prefix, n);
 
   delete[] arr;
+  delete[] prefix;
+  delete[] partial_sum;
 
   return 0;
 }
