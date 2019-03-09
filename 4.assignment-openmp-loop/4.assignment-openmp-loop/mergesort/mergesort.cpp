@@ -17,46 +17,46 @@ extern "C" {
 #endif
 
 
-void merge(int * arr, int * temp, int start, int mid, int end, int n)
+void merge(int * sub_array, int * sub_temp_array, int array_begin, int divid, int array_limit, int n)
 {
-  if (start == end) return;
+  if (array_begin == array_limit) return;
   
-  int k = start, i = start, j = mid + 1;
+  int k = array_begin, i = array_begin, j = divid + 1;
   
-  while (i <= mid && j <= end)
+  while (i <= divid && j <= array_limit)
   {
-    if (arr[i] < arr[j])
-      temp[k++] = arr[i++];
+    if (sub_array[i] < sub_array[j])
+      sub_temp_array[k++] = sub_array[i++];
     else
-      temp[k++] = arr[j++];
+      sub_temp_array[k++] = sub_array[j++];
   }
   
-  while (i < n && i <= mid)
-    temp[k++] = arr[i++];
+  while (i < n && i <= divid)
+    sub_temp_array[k++] = sub_array[i++];
   
   
   #pragma omp parallel for 
-  for (int i = start; i <= end; i++)
+  for (int i = array_begin; i <= array_limit; i++)
   { 
-    arr[i] = temp[i];
+    sub_array[i] = sub_temp_array[i];
   } 
     
 }
 
 
-void mergesort(int* arr, int * temp, int left, int right, int n) 
+void mergesort(int* local_array, int * local_val, int first_array, int second_array, int n) 
 {
-  for (int i = 1; i <= right - left; i = 2*i)
+  for (int i = 1; i <= second_array - first_array; i = 2*i)
   {
     //#pragma omp parallel for schedule(static)
     #pragma omp parallel for 
-    for (int j = left; j < right; j += 2*i)
+    for (int j = first_array; j < second_array; j += 2*i)
     {
       int start = j;
       int mid = j + i - 1;
-      int end = std::min(start + 2*i - 1, right);
+      int end = std::min(start + 2*i - 1, second_array);
 
-      merge(arr, temp, start, mid, end,n );
+      merge(local_array, local_val, start, mid, end,n );
     }
   }
 }
@@ -84,26 +84,19 @@ int main (int argc, char* argv[])
   int n = atoi(argv[1]);
   
   int * arr = new int [n];
-  int * temp = new int [n];
+  int * local_array = new int [n];
   
-  // get arr data
   generateMergeSortData (arr, n);
 
-  // generate random input of integers
   for (int i = 0; i < n; i++)
-    temp[i] = arr[i] ;
+    local_array[i] = arr[i] ;
 
   std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
   //insert sorting code here.
   
-  mergesort(arr, temp, 0, n - 1,n);
+  mergesort(arr, local_array, 0, n - 1,n);
   
   
-  /*#pragma omp parallel
-  {
-    #pragma omp single
-    mergesort(arr, temp, 0, n - 1,n);
-  } */
   std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
 
   std::chrono::duration<double> elapsed_seconds = end-start;
