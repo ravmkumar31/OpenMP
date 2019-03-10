@@ -25,47 +25,52 @@ int main (int argc, char* argv[]) {
     return -1;
   }
 
+  // int n = atoi(argv[1]);
+
+  // int nbthreads = atoi(argv[2]);
+  // omp_set_num_threads(nbthreads);
+
+  // int * arr = new int [n];
+  // int* prefix = new int [n+1];
+
+  int *thread_local_sum;
   int n = atoi(argv[1]);
 
-  int nbthreads = atoi(argv[2]);
-  omp_set_num_threads(nbthreads);
-
   int * arr = new int [n];
-  int* prefix = new int [n+1];
-  
-  
   generatePrefixSumData (arr, n);
-
+  
+  
+  int* pr = new int [n+1];
   std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
 
-  prefix[0] = arr[0]; 
-  int *partial_sum;
+  pr[0] = arr[0]; 
+  // int *thread_local_sum;
   #pragma omp parallel
   {
     int thread_id = omp_get_thread_num();
     
     #pragma omp single
     {
-      partial_sum = new int[nbthreads+1];
-      partial_sum[0] = 0;
+      thread_local_sum = new int[nbthreads+1];
+      thread_local_sum[0] = 0;
     }
     int sum = 0;
     #pragma omp for schedule(auto) nowait 
     for(int i=0; i<n; i++) {
       sum += arr[i];
-      prefix[i+1] = sum;
+      pr[i+1] = sum;
     }
-    partial_sum[thread_id+1] = sum;
+    thread_local_sum[thread_id+1] = sum;
     
     #pragma omp barrier
     int x = 0;
     for(int i=0; i<(thread_id+1); i++) {
-      x += partial_sum[i];
+      x += thread_local_sum[i];
     }
 
     #pragma omp for schedule(auto) 
     for(int i=0; i<n; i++) {
-      prefix[i+1] += x;
+      pr[i+1] += x;
     }
   } 
   
@@ -75,11 +80,11 @@ int main (int argc, char* argv[]) {
 
   std::cerr<<elapsed_seconds.count()<<std::endl;
 
-  checkPrefixSumResult(prefix, n);
+  checkPrefixSumResult(pr, n);
 
   delete[] arr;
-  delete[] prefix;
-  delete[] partial_sum;
+  delete[] pr;
+  delete[] thread_local_sum;
 
   return 0;
 }
