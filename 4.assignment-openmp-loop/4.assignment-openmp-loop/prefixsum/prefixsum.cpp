@@ -46,30 +46,31 @@ int main (int argc, char* argv[]) {
   // int *thread_local_sum;
   #pragma omp parallel
   {
-    int thread_id = omp_get_thread_num();
+    int thread_num = omp_get_thread_num();
     
     #pragma omp single
     {
       thread_local_sum = new int[nbthreads+1];
       thread_local_sum[0] = 0;
     }
-    int sum = 0;
+    
+    int thread_sum = 0;
     #pragma omp for schedule(auto) nowait 
     for(int i=0; i<n; i++) {
-      sum += arr[i];
-      pr[i+1] = sum;
+      thread_sum += arr[i];
+      pr[i+1] = thread_sum;
     }
-    thread_local_sum[thread_id+1] = sum;
+    thread_local_sum[thread_num+1] = thread_sum;
     
     #pragma omp barrier
-    int x = 0;
-    for(int i=0; i<(thread_id+1); i++) {
-      x += thread_local_sum[i];
+    int local_sum_val = 0;
+    for(int i=0; i<(thread_num+1); i++) {
+      local_sum_val += thread_local_sum[i];
     }
 
     #pragma omp for schedule(auto) 
     for(int i=0; i<n; i++) {
-      pr[i+1] += x;
+      pr[i+1] += local_sum_val;
     }
   } 
   
