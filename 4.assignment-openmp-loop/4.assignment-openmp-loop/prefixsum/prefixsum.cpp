@@ -1,214 +1,90 @@
-#include <iostream>
-
 #include <chrono>
-
-#include <ratio>
-
-#include <ctime>
-
- 
-
+#include <stdio.h>
+#include <iostream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <omp.h>
 
-#include <stdio.h>
-
-#include <fcntl.h>
-
-#include <string.h>
-
-#include <unistd.h>
-
-#include <stdlib.h>
-
-#include <sys/stat.h>
-
-#include <sys/types.h>
-
- 
-
- 
-
 #ifdef __cplusplus
-
 extern "C" {
-
 #endif
 
- 
-
-    void generatePrefixSumData (int* arr, size_t n);
-
-    void checkPrefixSumResult (int* arr, size_t n);
-
- 
-
- 
-
+  void generatePrefixSumData (int* arr, size_t n);
+  void checkPrefixSumResult (int* arr, size_t n);
+  
+  
 #ifdef __cplusplus
-
 }
-
 #endif
-
- 
-
- 
 
 int main (int argc, char* argv[]) {
-
- 
-
-    if (argc < 3) {
-
-        std::cerr<<"Usage: "<<argv[0]<<" <n> <nbthreads>"<<std::endl;
-
-        return -1;
-
+  #pragma omp parallel
+  {
+    int fd = open (argv[0], O_RDONLY);
+    if (fd != -1) {
+      close (fd);
     }
+    else {
+      std::cerr<<"something is amiss"<<std::endl;
+    }
+  }
+  
+  if (argc < 3) {
+    std::cerr<<"Usage: "<<argv[0]<<" <n> <nbthreads>"<<std::endl;
+    return -1;
+  }
 
-    //forces openmp to create the threads beforehand
+  int n = atoi(argv[1]);
 
-    omp_set_dynamic(0);
-
-    omp_set_num_threads(atoi(argv[2]));
-
-#pragma omp parallel
-
+  int * arr = new int [n];
+  generatePrefixSumData (arr, n);
+  
+  int nbthreads = atoi(argv[2]);
+  int* pr = new int [n+1];
+  auto clock_start = std::chrono::system_clock::now();
+  pr[0] = arr[0]; 
+  int *thread_local_sum;
+  #pragma omp parallel
+  {
+    int thread_num = omp_get_thread_num();
+    //initialise the first element
+    #pragma omp single
     {
-
-        int fd = open (argv[0], O_RDONLY);
-
-        if (fd != -1) {
-
-            close (fd);
-
-        }
-
-        else {
-
-            std::cerr<<"something is amiss"<<std::endl;
-
-        }
-
+      thread_local_sum = new int[nbthreads+1];
+      thread_local_sum[0] = 0;
     }
-
- 
-
-    int i, n = atoi(argv[1]);
-
-    int * arr = new int [n];
-
-    int * pr = new int [n+1];
-
-    pr[0]=0;
-
-    int nbthreads = atoi(argv[2]);
-
- 
-
-    int *temp ;
-
- 
-
- 
-
-#pragma omp_set_schedule(omp_sched_static, chunkSize);
-
- 
-
-    generatePrefixSumData (arr, atoi(argv[1]));
-
- 
-
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-
-#pragma omp parallel
-
-    {
-
-        int id = omp_get_thread_num();
-
-        int sum = 0;
-
- 
-
-#pragma omp single
-
-        {
-
-            nbthreads = omp_get_num_threads();
-
-            temp = new int[nbthreads];
-
-        }
-
-#pragma omp for schedule(static)
-
-        for ( i = 0; i<n; i++ )
-
-        {
-
-            sum += arr[i];
-
-            pr[i+1] = sum;
-
-        }
-
-#pragma omp critical
-
-        temp[id] = sum;
-
-#pragma omp barrier
-
-        int x = 0;
-
-        for (i=0; i<id; i++)
-
-        {
-
-            x += temp[i]; 
-
-        }
-
-#pragma omp for schedule(static)
-
-        for (i=0;i< n;i++ )
-
-        {
-
-            pr[i+1] += x;
-
-        }
-
+    
+    int thread_sum = 0;
+    //rum parallel code for computing prefix for each thread
+    #pragma omp for schedule(auto) nowait 
+    for(int i=0; i<n; i++) {
+      thread_sum += arr[i];
+      pr[i+1] = thread_sum;
     }
+    thread_local_sum[thread_num+1] = thread_sum;
+    //wait till all threads finishes and then compute the total prefix sum values
+    #pragma omp barrier
+    int local_sum_val = 0;
+    for(int i=0; i<(thread_num+1); i++) {
+      local_sum_val += thread_local_sum[i];
+    }
+    //get the local sum into pr array and complete the prefix sum
+    #pragma omp for schedule(auto) 
+    for(int i=0; i<n; i++) {
+      pr[i+1] += local_sum_val;
+    }
+  } 
+  auto clock_end = std::chrono::system_clock::now();//end clock
+  std::chrono::duration<double> total_duration = clock_end-clock_start;
+  std::cerr<<total_duration.count()<<std::endl;
 
-    std::chrono::high_resolution_clock::time_point end  = std::chrono::high_resolution_clock::now();
+  checkPrefixSumResult(pr, n);
 
- 
+  delete[] arr;
+  delete[] pr;
+  delete[] thread_local_sum;
 
-    std::chrono::duration<double> elapsed_seconds = end-start;
-
- 
-
-    checkPrefixSumResult(pr, atoi(argv[1]));
-
- 
-
-    std::cerr<<std::fixed<<elapsed_seconds.count()<<std::endl;
-
- 
-
-    delete[] arr;
-
-    delete[] pr;
-
-    delete[] temp;
-
- 
-
-    return 0;
-
+  return 0;
 }
-
- 
-

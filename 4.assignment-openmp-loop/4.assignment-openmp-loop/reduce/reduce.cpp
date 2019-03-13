@@ -35,7 +35,7 @@ int main (int argc, char* argv[]) {
     std::cerr<<"Usage: "<<argv[0]<<" <n> <nbthreads> <scheduling> <granularity>"<<std::endl;
     return -1;
   }
-
+  //initialise all input varaibles useful to compute the reduce
   int n = atoi(argv[1]);
   int * arr = new int [n];
   int nbthreads = atoi(argv[2]);
@@ -43,23 +43,22 @@ int main (int argc, char* argv[]) {
   int granularity = atoi(argv[4]);
   int reduced_sum = 0;
   generateReduceData (arr, atoi(argv[1]));
-
-  
+  //create the threads for parallel computing
   omp_set_num_threads(nbthreads); 
 
   //insert reduction code here
   auto clock_start = std::chrono::system_clock::now();
-  if(strcmp(schedule_type , "static") == 0)
+  if(strcmp(schedule_type , "static") == 0)//check which scheduling is selected by user
   {
-    if (granularity<0)
+    if (granularity<0)//granularity heck if less than 0 it than change logic for chunksize.If its negative just implement without chunksize
     {
-       #pragma omp parallel for schedule(static) reduction(+:reduced_sum)
+       #pragma omp parallel for schedule(static) reduction(+:reduced_sum)//initiate paralleism with reduction on reduced_sum
         for (int i = 0; i < n; ++i)
         {
           reduced_sum+=arr[i];
         }  
     }
-    else
+    else//granularity heck if less than 0 it than change logic for chunksize.If its negative just implement without chunksize
     {
       #pragma omp parallel for schedule(static,granularity) reduction(+:reduced_sum)
       for (int i = 0; i < n; ++i)
@@ -68,17 +67,17 @@ int main (int argc, char* argv[]) {
       }
     }  
   }
-  else if(strcmp(schedule_type, "dynamic") == 0)
+  else if(strcmp(schedule_type, "dynamic") == 0)//check which scheduling is selected by user
   {
-    if (granularity<0)
+    if (granularity<0)//granularity heck if less than 0 it than change logic for chunksize.If its negative just implement without chunksize
     {  
-     #pragma omp parallel for schedule(dynamic) reduction(+:reduced_sum)
+     #pragma omp parallel for schedule(dynamic) reduction(+:reduced_sum)//initiate paralleism with reduction on reduced_sum
      for (int i = 0; i < n; ++i)
      {
        reduced_sum+=arr[i];
      }
     }
-    else
+    else//granularity heck if less than 0 it than change logic for chunksize.If its negative just implement without chunksize
     {
       #pragma omp parallel for schedule(dynamic,granularity) reduction(+:reduced_sum)
       for (int i = 0; i < n; ++i)
@@ -87,6 +86,8 @@ int main (int argc, char* argv[]) {
       }
     } 
   }
+  //Following code is commented as test cases doen't required guided schedule type
+
   // else if (strcmp(schedule_type,"guided") == 0)
   // {
   //   if (granularity<0)
@@ -106,8 +107,6 @@ int main (int argc, char* argv[]) {
   //     } 
   //   }
   // }
-  
-  
   auto clock_end = std::chrono::system_clock::now();
   std::chrono::duration<double>diff = clock_end - clock_start;
   std::cout<<reduced_sum<<std::endl;

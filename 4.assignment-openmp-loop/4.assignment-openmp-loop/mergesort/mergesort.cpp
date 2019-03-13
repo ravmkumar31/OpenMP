@@ -18,96 +18,88 @@ extern "C" {
 
 using namespace std;
 
-void merge(int* arr, int l, int m, int r)
+void merge(int* arr, int begin, int center, int last)
 {
-    int i, j, k;
-    int n1 = m - l + 1;
-    int n2 =  r - m;
+    int  i,j,k,midterm = center - begin + 1,endterm =  last - center;
+    //ilising two arrays by diving almost into two halves
+    int* first_half = new int[midterm];
+    int* second_half = new int[endterm];
 
-    /* create temp arrays */
-    int* L = new int[n1];
-    int* R = new int[n2];
+    //get data into this arrays for computation
+    for (int i = 0; i < midterm; i++)
+        first_half[i] = arr[begin + i];
+    for (int j = 0; j < endterm; j++)
+        second_half[j] = arr[center + 1+ j];
 
-    /* Copy data to temp arrays L[] and R[] */
-    for (i = 0; i < n1; i++)
-        L[i] = arr[l + i];
-    for (j = 0; j < n2; j++)
-        R[j] = arr[m + 1+ j];
-
-    /* Merge the temp arrays back into arr[l..r]*/
-    i = 0; // Initial index of first subarray
-    j = 0; // Initial index of second subarray
-    k = l; // Initial index of merged subarray
-    while (i < n1 && j < n2)
+    //Merge the two arrays and get back to main array
+    i = 0;
+    j = 0;
+    k = begin;
+    while (i < midterm && j < endterm)
     {
-        if (L[i] <= R[j])
+        if (first_half[i] <= second_half[j])
         {
-            arr[k] = L[i];
+            arr[k] = first_half[i];
             i++;
         }
         else
         {
-            arr[k] = R[j];
+            arr[k] = second_half[j];
             j++;
         }
         k++;
     }
-
-    /* Copy the remaining elements of L[], if there
-       are any */
-    while (i < n1)
+    //get the left out elements from first half array
+    while (i < midterm)
     {
-        arr[k] = L[i];
+        arr[k] = first_half[i];
         i++;
         k++;
     }
 
-    /* Copy the remaining elements of R[], if there
-       are any */
-    while (j < n2)
+    //get the left out elements from second half array
+    while (j < endterm)
     {
-        arr[k] = R[j];
+        arr[k] = second_half[j];
         j++;
         k++;
     }
-    delete[] L;
-    delete[] R;
+    delete[] first_half;
+    delete[] second_half;
 }
 
-void mergeSort(int* arr, int l, int r, int nbthreads)
+void mergeSort(int* arr, int begin, int last, int nbthreads)
 {
-   //Set the number of threads
-   // omp_set_dynamic(0);
+    //creating number of threads
     omp_set_num_threads(nbthreads);
-
-    int n= r+1;
-
+    int n= last+1;
     for(int level = 1; level < n;level *= 2)
     {
-        #pragma omp parallel for schedule(static, 1)
-        for(int bindex=0;bindex < n;bindex += (2*level))
+        #pragma omp parallel for schedule(static)
+        for(int k=0;k < n;k += (2*level))
         {
-            int start = bindex;
-            int mid = bindex + (level-1);
-            int end = bindex + ((2*level)-1);
-            if(mid >= n)
+            int initial = k;
+            int center = k + (level-1);
+            int rear = k + ((2*level)-1);
+            if(center >= n)
             {
-                mid = (bindex+n-1)/2;
-                end = n-1;
+                center = (k+n-1)/2;
+                rear = n-1;
             }
-            else if(end >= n)
+            else if(rear >= n)
             {
-                end = n-1;
+                rear = n-1;
             }
-            merge(arr,start,mid,end);
+            merge(arr,initial,center,rear);
         }
     }
 }
 
 
+
+
 int main (int argc, char* argv[]) {
 
-  //forces openmp to create the threads beforehand
 #pragma omp parallel
   {
     int fd = open (argv[0], O_RDONLY);
@@ -132,11 +124,9 @@ int main (int argc, char* argv[]) {
   generateMergeSortData (arr, n);
 
 
-  std::chrono::time_point<std::chrono::system_clock> clock_start = std::chrono::system_clock::now();
-
-  mergeSort(arr, 0, n-1, nbthreads);
-
-  std::chrono::time_point<std::chrono::system_clock> clock_end = std::chrono::system_clock::now();
+  std::chrono::time_point<std::chrono::system_clock> clock_start = std::chrono::system_clock::now();//time begins
+  mergeSort(arr, 0, n-1, nbthreads);//Runs merge sort 
+  std::chrono::time_point<std::chrono::system_clock> clock_end = std::chrono::system_clock::now();//time ends when computation is done
   std::chrono::duration<double> total_time = clock_end-clock_start;
   cerr<<total_time.count()<<std::endl;
   checkMergeSortResult (arr, n);
