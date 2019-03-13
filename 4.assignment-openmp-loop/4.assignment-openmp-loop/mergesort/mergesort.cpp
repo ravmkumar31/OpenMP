@@ -1,69 +1,124 @@
-#include <omp.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <iostream>
 #include <unistd.h>
+#include <omp.h>
 #include <chrono>
 
 #ifdef __cplusplus
 extern "C" {
-  #endif
+#endif
   void generateMergeSortData (int* arr, size_t n);
   void checkMergeSortResult (int* arr, size_t n);
-  #ifdef __cplusplus
+#ifdef __cplusplus
 }
 #endif
 
+using namespace std;
 
-void merge(int * sub_array, int * sub_temp_array, int array_begin, int divid, int array_limit, int n)
+void merge(int* arr, int l, int m, int r)
 {
-  if (array_begin == array_limit) return;
-  
-  int k = array_begin, i = array_begin, j = divid + 1;
-  
-  while (i <= divid && j <= array_limit)
-  {
-    if (sub_array[i] < sub_array[j])
-      sub_temp_array[k++] = sub_array[i++];
-    else
-      sub_temp_array[k++] = sub_array[j++];
-  }
-  
-  while (i < n && i <= divid)
-    sub_temp_array[k++] = sub_array[i++];
-  
-  
-  #pragma omp parallel for 
-  for (int i = array_begin; i <= array_limit; i++)
-  { 
-    sub_array[i] = sub_temp_array[i];
-  } 
-    
-}
+    int i, j, k;
+    int n1 = m - l + 1;
+    int n2 =  r - m;
 
+    /* create temp arrays */
+    int* L = new int[n1];
+    int* R = new int[n2];
 
-void mergesort(int* local_array, int * local_val, int first_array, int second_array, int n) 
-{
-  for (int i = 1; i <= second_array - first_array; i = 2*i)
-  {
-    //#pragma omp parallel for schedule(static)
-    #pragma omp parallel for 
-    for (int j = first_array; j < second_array; j += 2*i)
+    /* Copy data to temp arrays L[] and R[] */
+    for (i = 0; i < n1; i++)
+        L[i] = arr[l + i];
+    for (j = 0; j < n2; j++)
+        R[j] = arr[m + 1+ j];
+
+    /* Merge the temp arrays back into arr[l..r]*/
+    i = 0; // Initial index of first subarray
+    j = 0; // Initial index of second subarray
+    k = l; // Initial index of merged subarray
+    while (i < n1 && j < n2)
     {
-      int start = j;
-      int mid = j + i - 1;
-      int end = std::min(start + 2*i - 1, second_array);
-
-      merge(local_array, local_val, start, mid, end,n );
+        if (L[i] <= R[j])
+        {
+            arr[k] = L[i];
+            i++;
+        }
+        else
+        {
+            arr[k] = R[j];
+            j++;
+        }
+        k++;
     }
-  }
+
+    /* Copy the remaining elements of L[], if there
+       are any */
+    while (i < n1)
+    {
+        arr[k] = L[i];
+        i++;
+        k++;
+    }
+
+    /* Copy the remaining elements of R[], if there
+       are any */
+    while (j < n2)
+    {
+        arr[k] = R[j];
+        j++;
+        k++;
+    }
+    delete[] L;
+    delete[] R;
 }
 
-int main (int argc, char* argv[]) 
+void mergeSort(int* arr, int l, int r, int numThreads)
 {
-  #pragma omp parallel
+   //Set the number of threads
+   // omp_set_dynamic(0);
+    omp_set_num_threads(numThreads);
+
+    int n= r+1;
+
+    for(int level = 1; level < n;level *= 2)
+    {
+        #pragma omp parallel for schedule(static, 1)
+        for(int bindex=0;bindex < n;bindex += (2*level))
+        {
+            int start = bindex;
+            int mid = bindex + (level-1);
+            int end = bindex + ((2*level)-1);
+            if(mid >= n)
+            {
+                mid = (bindex+n-1)/2;
+                end = n-1;
+            }
+            else if(end >= n)
+            {
+                end = n-1;
+            }
+            merge(arr,start,mid,end);
+        }
+    }
+}
+
+/* Function to print an array */
+void printArray(int A[], int size)
+{
+    int i;
+    for (i=0; i < size; i++)
+        printf("%d ", A[i]);
+    printf("\n");
+}
+
+
+
+int main (int argc, char* argv[]) {
+
+  //forces openmp to create the threads beforehand
+#pragma omp parallel
   {
     int fd = open (argv[0], O_RDONLY);
     if (fd != -1) {
@@ -78,31 +133,27 @@ int main (int argc, char* argv[])
     return -1;
   }
 
-  int nbthreads = atoi(argv[2]);
-  omp_set_num_threads(nbthreads);
-
   int n = atoi(argv[1]);
-  
+  int numThreads = atoi(argv[2]);
+
+  // get arr data
   int * arr = new int [n];
-  int * local_array = new int [n];
-  
+
   generateMergeSortData (arr, n);
 
-  for (int i = 0; i < n; i++)
-    local_array[i] = arr[i] ;
 
-  std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
   //insert sorting code here.
-  
-  mergesort(arr, local_array, 0, n - 1,n);
-  
-  
+  // start timing
+  std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
+
+  mergeSort(arr, 0, n-1, numThreads);
+
+  //printArray(arr, n);
+  // end time
   std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
-
-  std::chrono::duration<double> elapsed_seconds = end-start;
-
-  std::cerr<<elapsed_seconds.count()<<std::endl;
-
+  std::chrono::duration<double> elapased_seconds = end-start;
+  //Print the total execution time (in sec) to the error stream
+  cerr<<elapased_seconds.count()<<std::endl;
   checkMergeSortResult (arr, n);
 
   delete[] arr;
