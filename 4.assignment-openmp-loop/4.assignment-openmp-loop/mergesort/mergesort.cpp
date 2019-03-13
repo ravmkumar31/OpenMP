@@ -74,11 +74,11 @@ void merge(int* arr, int l, int m, int r)
     delete[] R;
 }
 
-void mergeSort(int* arr, int l, int r, int numThreads)
+void mergeSort(int* arr, int l, int r, int nbthreads)
 {
    //Set the number of threads
    // omp_set_dynamic(0);
-    omp_set_num_threads(numThreads);
+    omp_set_num_threads(nbthreads);
 
     int n= r+1;
 
@@ -104,16 +104,6 @@ void mergeSort(int* arr, int l, int r, int numThreads)
     }
 }
 
-/* Function to print an array */
-void printArray(int A[], int size)
-{
-    int i;
-    for (i=0; i < size; i++)
-        printf("%d ", A[i]);
-    printf("\n");
-}
-
-
 
 int main (int argc, char* argv[]) {
 
@@ -134,7 +124,7 @@ int main (int argc, char* argv[]) {
   }
 
   int n = atoi(argv[1]);
-  int numThreads = atoi(argv[2]);
+  int nbthreads = atoi(argv[2]);
 
   // get arr data
   int * arr = new int [n];
@@ -142,18 +132,13 @@ int main (int argc, char* argv[]) {
   generateMergeSortData (arr, n);
 
 
-  //insert sorting code here.
-  // start timing
-  std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
+  std::chrono::time_point<std::chrono::system_clock> clock_start = std::chrono::system_clock::now();
 
-  mergeSort(arr, 0, n-1, numThreads);
+  mergeSort(arr, 0, n-1, nbthreads);
 
-  //printArray(arr, n);
-  // end time
-  std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
-  std::chrono::duration<double> elapased_seconds = end-start;
-  //Print the total execution time (in sec) to the error stream
-  cerr<<elapased_seconds.count()<<std::endl;
+  std::chrono::time_point<std::chrono::system_clock> clock_end = std::chrono::system_clock::now();
+  std::chrono::duration<double> total_time = clock_end-clock_start;
+  cerr<<total_time.count()<<std::endl;
   checkMergeSortResult (arr, n);
 
   delete[] arr;
